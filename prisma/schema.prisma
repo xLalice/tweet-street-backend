@@ -29,7 +29,7 @@ model SocialMediaAccount {
   platform      Platform
   accountId     String
   accessToken   String
-  refreshToken  String?
+  accessTokenSecret  String?
   tokenExpiry   DateTime?
   metadata      Json?
   posts         Post[]
