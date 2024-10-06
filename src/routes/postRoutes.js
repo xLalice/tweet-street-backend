@@ -6,6 +6,7 @@ const cron = require("node-cron");
 const postToSocialMedia = require("../utils/socialMediaPoster");
 const passport = require("../config/passport");
 const { Platform, PostStatus } = require('@prisma/client');
+const getCoordinates = require("../services/googleMapsService")
 
 router.get("/", passport.authenticate("jwt", { session: false }), async (req, res) => {
     const userId = req.user.id;
@@ -37,6 +38,8 @@ router.get("/", passport.authenticate("jwt", { session: false }), async (req, re
             scheduledTime: post.scheduledTime,
             platform: post.account.platform,  
             status: post.status, 
+            latitude: post.latitude,
+            longitude: post.longitude
         }));
 
         res.status(200).json(formattedPosts);
@@ -46,14 +49,13 @@ router.get("/", passport.authenticate("jwt", { session: false }), async (req, re
     }
 });
 
-
 router.post(
     "/schedule",
     passport.authenticate("jwt", { session: false }),
     async (req, res) => {
         const userId = req.user.id; 
-        const { content, scheduledTime, location,  platforms} = req.body;
-            
+        const { content, scheduledTime, location } = req.body;
+
         try {
             const account = await prisma.socialMediaAccount.findUnique({
                 where: {
@@ -68,12 +70,16 @@ router.post(
                 return res.status(404).json({ message: "Social media account not found" });
             }
 
+            const { lat, lng, formattedAddress } = await getCoordinates(location);
+
             const post = await prisma.post.create({
                 data: {
                     userId: userId,
-                    accountId: account.id, 
+                    accountId: account.id,
                     content,
-                    location,
+                    location: formattedAddress, 
+                    latitude: lat,              
+                    longitude: lng,             
                     scheduledTime: new Date(scheduledTime),
                     status: "SCHEDULED",
                 },
