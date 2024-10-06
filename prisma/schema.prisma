@@ -1,0 +1,67 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int                 @id @default(autoincrement())
+  email             String?              @unique
+  name              String?
+  facebookId        String?             @unique
+  twitterId         String?             @unique
+  socialMediaAccounts SocialMediaAccount[]
+  posts             Post[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+}
+
+model SocialMediaAccount {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id])
+  platform      Platform
+  accountId     String
+  accessToken   String
+  refreshToken  String?
+  tokenExpiry   DateTime?
+  metadata      Json?
+  posts         Post[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, platform])
+}
+
+model Post {
+  id            Int       @id @default(autoincrement())
+  content       String
+  scheduledTime DateTime
+  location      String?
+  latitude      Float?
+  longitude     Float?
+  status        PostStatus @default(SCHEDULED)
+  userId        Int
+  user          User      @relation(fields: [userId], references: [id])
+  accountId     Int
+  account       SocialMediaAccount @relation(fields: [accountId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum Platform {
+  FACEBOOK
+  TWITTER
+}
+
+enum PostStatus {
+  SCHEDULED
+  POSTED
+  FAILED
+}
