@@ -12,7 +12,10 @@
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^5.20.0",
+    "axios": "^1.7.7",
+    "cookie-parser": "^1.4.6",
     "cookie-session": "^2.1.0",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "express-session": "^1.18.0",
@@ -21,8 +24,10 @@
     "nodemon": "^3.1.7",
     "passport": "^0.7.0",
     "passport-facebook": "^3.0.0",
+    "passport-jwt": "^4.0.1",
     "passport-twitter": "^1.0.4",
     "prisma": "^5.20.0",
-    "twit": "^2.2.11"
+    "twit": "^2.2.11",
+    "twitter-api-v2": "^1.18.0"
   }
 }
