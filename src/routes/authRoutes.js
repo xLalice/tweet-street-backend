@@ -32,7 +32,7 @@ router.get('/twitter/callback',
       secure: process.env.NODE_ENV === 'production', 
       maxAge: 3600000
     });
-    res.redirect('http://localhost:5173/');
+    res.redirect(process.env.CLIENT_URL);
   }
 );
 
