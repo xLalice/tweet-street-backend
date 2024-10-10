@@ -68,6 +68,9 @@ router.post(
 
             const { lat, lng, formattedAddress } = await getCoordinates(location);
 
+            const moment = require('moment-timezone');
+            const utcScheduledTime = moment.tz(scheduledTime, 'UTC').toDate();
+
             const post = await prisma.post.create({
                 data: {
                     userId: userId,
