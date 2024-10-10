@@ -12,6 +12,8 @@ const app = express();
 
 const prisma = new PrismaClient();
 
+app.set('trust proxy', 1);
+
 app.use(
     cors({
         origin: process.env.CLIENT_URL,
@@ -32,15 +34,25 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use("/auth/", authRoutes);
-app.use("/api/posts", postRoutes);
+app.use("/api/posts", postRoutes);  
 
+console.log(`${process.env.BACKEND_URL}/auth/twitter/callback`)
 async function loadScheduledPosts() {
     const scheduledPosts = await prisma.post.findMany({
         where: {
-            scheduledTime: { gte: new Date() },
-            status: "SCHEDULED",
+          OR: [
+            {
+              status: "SCHEDULED"
+            },
+            {
+              status: 'FAILED',  // assuming there is a status field that tracks post status
+            },
+          ],
         },
-    });
+        orderBy: {
+            scheduledTime: "asc"
+        }
+      });
 
     console.log("Scheduled posts loaded:", scheduledPosts); // Debugging line
 
