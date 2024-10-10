@@ -24,34 +24,8 @@ const postToTwitter = async (
 
     try {
         console.log("Post to twitter called");
-        const geoResponse = await axios.get(
-            "https://api.x.com/1.1/geo/reverse_geocode.json",
-            {
-                params: {
-                    lat: lat,
-                    long: long,
-                    granularity: "neighborhood",
-                    max_results: 1,
-                },
-                headers: {
-                    Authorization: `Bearer ${process.env.TWITTER_BEARER_TOKEN}`,
-                },
-            }
-        );
-        console.log("Geo Response:", geoResponse);
-
-        const placeId = geoResponse.data.result.places?.[0]?.id;
-        console.log("Place Id: ", placeId)
-
-        if (!placeId) {
-            throw new Error("No place ID found for the given coordinates.");
-        }
-
         const response = await twitterClient.v2.tweet({
-            text: content,
-            geo: {
-                place_id: placeId,
-            },
+            text: content
         });
 
         return response;
