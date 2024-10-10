@@ -27,13 +27,7 @@ router.get('/twitter/callback',
     
     const token = generateToken(req.user);
 
-    res.cookie('authToken', token, {
-      httpOnly: true, 
-      secure: process.env.NODE_ENV === 'production', 
-      maxAge: 3600000,
-      sameSite: "None"
-    });
-    res.redirect(process.env.CLIENT_URL);
+    res.redirect(`${process.env.CLIENT_URL}/auth/callback?token=${token}`);
   }
 );
 
