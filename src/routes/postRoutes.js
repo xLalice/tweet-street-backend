@@ -15,10 +15,6 @@ router.get("/", passport.authenticate("jwt", { session: false }), async (req, re
         const posts = await prisma.post.findMany({
             where: {
                 userId: userId,
-                OR: [
-                    { status: PostStatus.SCHEDULED },
-                    { status: PostStatus.POSTED }
-                ]
             },
             include: {
                 account: true
