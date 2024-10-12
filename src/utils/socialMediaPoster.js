@@ -62,4 +62,6 @@ const postToSocialMedia = async (post) => {
     }
 };
 
-module.exports = postToSocialMedia;
+module.exports = {
+    postToSocialMedia,
+};
