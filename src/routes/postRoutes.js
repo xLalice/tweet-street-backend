@@ -6,7 +6,8 @@ const cron = require("node-cron");
 const postToSocialMedia = require("../utils/socialMediaPoster");
 const passport = require("../config/passport");
 const { Platform, PostStatus } = require('@prisma/client');
-const getCoordinates = require("../services/googleMapsService")
+const getCoordinates = require("../services/googleMapsService");
+const moment = require('moment-timezone');
 
 router.get("/", passport.authenticate("jwt", { session: false }), async (req, res) => {
     const userId = req.user.id;
@@ -68,8 +69,7 @@ router.post(
 
             const { lat, lng, formattedAddress } = await getCoordinates(location);
 
-            const moment = require('moment-timezone');
-            const utcScheduledTime = moment.tz(scheduledTime, 'UTC').toDate();
+            const scheduledTimeInUTC = moment.tz(scheduledTime, 'Asia/Manila').utc().toDate();
 
             const post = await prisma.post.create({
                 data: {
@@ -79,7 +79,7 @@ router.post(
                     location: formattedAddress, 
                     latitude: lat,              
                     longitude: lng,             
-                    scheduledTime: new Date(scheduledTime),
+                    scheduledTime: scheduledTimeInUTC,
                     status: "SCHEDULED",
                 },
             });
