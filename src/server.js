@@ -12,8 +12,6 @@ const app = express();
 
 const prisma = new PrismaClient();
 
-app.set('trust proxy', 1);
-
 app.use(
     cors({
         origin: process.env.CLIENT_URL,
@@ -45,7 +43,7 @@ async function loadScheduledPosts() {
               status: "SCHEDULED"
             },
             {
-              status: 'FAILED',  // assuming there is a status field that tracks post status
+              status: 'FAILED', 
             },
           ],
         },
