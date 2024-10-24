@@ -3,7 +3,7 @@ const router = express.Router(); // Create a new Express router
 const { PrismaClient } = require("@prisma/client"); // Import Prisma Client for database interactions
 const prisma = new PrismaClient(); // Instantiate Prisma Client
 const cron = require("node-cron"); // Import the node-cron package for scheduling tasks
-const postToSocialMedia = require("../utils/socialMediaPoster"); // Import utility function to post content to social media
+const {postToSocialMedia} = require("../utils/socialMediaPoster"); // Import utility function to post content to social media
 const passport = require("../config/passport"); // Import configured Passport instance for authentication
 const { Platform, PostStatus } = require('@prisma/client'); // Import platform and post status enums from Prisma Client
 const getCoordinates = require("../services/googleMapsService"); // Import service for retrieving geolocation data
@@ -53,7 +53,7 @@ router.post(
     passport.authenticate("jwt", { session: false }), // Authenticate the request
     async (req, res) => {
         const userId = req.user.id; // Get user ID from authenticated request
-        const { content, scheduledTime, location } = req.body; // Destructure content, scheduled time, and location from request body
+        const { content, scheduledTime, location, imageUrl } = req.body; // Destructure content, scheduled time, and location from request body
 
         try {
             const account = await prisma.socialMediaAccount.findUnique({ // Fetch the user's social media account
@@ -84,6 +84,7 @@ router.post(
                     longitude: lng, // Store longitude
                     scheduledTime: scheduledTimeInUTC, // Store the scheduled time in UTC
                     status: "SCHEDULED", // Set the initial status to "SCHEDULED"
+                    imageUrl: imageUrl
                 },
             });
 
@@ -112,7 +113,6 @@ const schedulePost = (post) => {
             async () => { // Define the task to execute
                 try {
                     await postToSocialMedia(post); // Post the content to social media
-                    console.log("Post successfully published:", post.id); // Log success message
                 } catch (error) {
                     console.error("Error posting to social media:", error); // Log any posting errors
                 }

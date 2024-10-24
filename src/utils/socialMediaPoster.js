@@ -1,77 +1,122 @@
-const { PrismaClient, PostStatus } = require("@prisma/client"); // Importing PrismaClient and PostStatus for database operations.
-const axios = require("axios"); // Importing axios for making HTTP requests.
-const { TwitterApi } = require("twitter-api-v2"); // Importing TwitterApi to interact with the Twitter API.
+const { PrismaClient, PostStatus } = require("@prisma/client"); // Import PrismaClient and PostStatus for database operations.
+const { TwitterApi } = require("twitter-api-v2"); // Import TwitterApi to interact with the Twitter API.
+const axios = require("axios");
 
-const prisma = new PrismaClient(); // Creating a new instance of PrismaClient to interact with the database.
+const prisma = new PrismaClient(); // Create a new PrismaClient instance to interact with the database.
 
 // Function to post a tweet to Twitter.
 const postToTwitter = async (
-    accessToken, // Access token for the user's Twitter account.
-    accessTokenSecret, // Access token secret for the user's Twitter account.
-    content, // Content of the tweet.
-    lat, // Latitude for location (optional).
-    long // Longitude for location (optional).
-) => {
-    // Check if the tweet content exceeds the 280 character limit.
+    accessToken,
+    accessTokenSecret,
+    content,
+    imageUrl = null
+  ) => {
     if (content.length > 280) {
-        throw new Error("Tweet content exceeds the 280 character limit."); // Throw an error if content is too long.
+      throw new Error("Tweet content exceeds the 280 character limit.");
     }
-
-    // Creating a Twitter client instance with the necessary credentials.
+  
     const twitterClient = new TwitterApi({
-        appKey: process.env.TWITTER_CONSUMER_KEY, // Consumer key from environment variables.
-        appSecret: process.env.TWITTER_CONSUMER_SECRET, // Consumer secret from environment variables.
-        accessToken, // User's access token.
-        accessSecret: accessTokenSecret, // User's access secret.
+      appKey: process.env.TWITTER_CONSUMER_KEY,
+      appSecret: process.env.TWITTER_CONSUMER_SECRET,
+      accessToken,
+      accessSecret: accessTokenSecret,
     });
-
+  
     try {
-        console.log("Post to twitter called"); // Log that the post function was called.
-        // Sending a tweet with the provided content.
-        const response = await twitterClient.v2.tweet({
-            text: content // The tweet text.
-        });
-
-        return response; // Return the response from Twitter API.
+      console.log("Post to Twitter called");
+      
+      // Create a client for v1 and v2 methods
+      const v1Client = twitterClient.v1;
+      const v2Client = twitterClient.v2;
+      
+      // Handle image upload if provided
+      let mediaIds = [];
+      if (imageUrl) {
+        try {
+          const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+          const mediaBuffer = Buffer.from(response.data, 'binary');
+          
+          // Upload media using v1.1 endpoint
+          const mediaResponse = await v1Client.uploadMedia(mediaBuffer, { 
+            mimeType: "image/jpeg" 
+          });
+          console.log("Media uploaded successfully:", mediaResponse);
+          mediaIds.push(mediaResponse);
+        } catch (mediaError) {
+          console.error("Error uploading media:", mediaError);
+          throw new Error("Failed to upload media: " + mediaError.message);
+        }
+      }
+  
+      // Construct the tweet payload
+      const tweetData = {
+        text: content,
+      };
+  
+      // Add media if we have any
+      if (mediaIds.length > 0) {
+        tweetData.media = { 
+          media_ids: mediaIds 
+        };
+      }
+  
+      console.log("Sending tweet with payload:", JSON.stringify(tweetData, null, 2));
+  
+      // Send the tweet using v2 endpoint
+      const response = await v2Client.tweet(tweetData);
+      console.log("Tweet response:", response);
+  
+      if (response.errors) {
+        console.error("Error response from Twitter:", response.errors);
+        throw new Error("Failed to post tweet: " + response.errors.map(err => err.message).join(", "));
+      }
+  
+      return response;
     } catch (error) {
-        console.error("Error posting tweet:", error); // Log any errors encountered.
-        throw error; // Re-throw the error for further handling.
+      console.error("Error posting tweet:", error);
+      throw error;
     }
-};
+  };
 
 // Function to post content to social media.
 const postToSocialMedia = async (post) => {
-    // Fetch the associated social media account from the database.
     const account = await prisma.socialMediaAccount.findUnique({
-        where: { id: post.accountId }, // Find account by ID linked to the post.
+        where: { id: post.accountId },
     });
 
     try {
-        // Call the postToTwitter function with the necessary parameters.
-        await postToTwitter(
-            account.accessToken, // User's access token from the social media account.
-            account.accessTokenSecret, // User's access token secret.
-            post.content, // Content of the post to tweet.
-            post.latitude, // Latitude of the post location.
-            post.longitude // Longitude of the post location.
+        const response = await postToTwitter(
+            account.accessToken,
+            account.accessTokenSecret,
+            post.content,
+            post.imageUrl,
+            post.latitude,
+            post.longitude
         );
 
-        // Update the post status in the database to indicate it has been posted.
-        await prisma.post.update({
-            where: { id: post.id }, // Find the post by ID.
-            data: { status: PostStatus.POSTED }, // Set status to POSTED.
-        });
+        // If posting was successful, update post status to POSTED
+        if (!response.errors) {
+            await prisma.post.update({
+                where: { id: post.id },
+                data: { status: PostStatus.POSTED },
+            });
+        } else {
+            await prisma.post.update({
+                where: { id: post.id },
+                data: { status: PostStatus.FAILED },
+            });
+        }
     } catch (error) {
-        console.error("Failed to post to social media:", error); // Log the error if posting fails.
-        // Update the post status to FAILED in the database.
+        console.error("Failed to post to social media:", error);
+
+        // Update post status to FAILED in case of an error
         await prisma.post.update({
             where: { id: post.id },
-            data: { status: PostStatus.FAILED }, // Set status to FAILED.
+            data: { status: PostStatus.FAILED },
         });
     }
 };
 
-// Exporting the postToSocialMedia function for use in other modules.
 module.exports = {
     postToSocialMedia,
 };

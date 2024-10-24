@@ -47,6 +47,7 @@ model Post {
   latitude      Float?
   longitude     Float?
   status        PostStatus @default(SCHEDULED)
+  imageUrl      String?
   userId        Int
   user          User      @relation(fields: [userId], references: [id])
   accountId     Int
