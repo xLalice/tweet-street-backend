@@ -50,53 +50,81 @@ router.get("/", passport.authenticate("jwt", { session: false }), async (req, re
 // Route to schedule a new post
 router.post(
     "/schedule",
-    passport.authenticate("jwt", { session: false }), // Authenticate the request
+    passport.authenticate("jwt", { session: false }),
     async (req, res) => {
-        const userId = req.user.id; // Get user ID from authenticated request
-        const { content, scheduledTime, location, imageUrl } = req.body; // Destructure content, scheduled time, and location from request body
+        const userId = req.user.id;
+        const { content, scheduledTime, location, imageUrl } = req.body;
 
         try {
-            const account = await prisma.socialMediaAccount.findUnique({ // Fetch the user's social media account
+            // Validate required fields
+            if (!content || !scheduledTime || !location) {
+                return res.status(400).json({ 
+                    message: "Missing required fields: content, scheduledTime, and location are required" 
+                });
+            }
+
+            // Validate scheduled time is in the future
+            const scheduledMoment = moment.tz(scheduledTime, 'Asia/Manila');
+            if (scheduledMoment.isBefore(moment())) {
+                return res.status(400).json({ 
+                    message: "Scheduled time must be in the future" 
+                });
+            }
+
+            const account = await prisma.socialMediaAccount.findUnique({
                 where: {
-                    userId_platform: { // Use a composite key of user ID and platform
+                    userId_platform: {
                         userId: userId,
-                        platform: Platform.TWITTER // Specify the platform (Twitter)
+                        platform: 'TWITTER'
                     }
                 }
             });
 
-            if (!account) { // Check if the account exists
-                return res.status(404).json({ message: "Social media account not found" }); // Return a 404 response
+            if (!account) {
+                return res.status(404).json({ 
+                    message: "Social media account not found" 
+                });
             }
 
-            const { lat, lng, formattedAddress } = await getCoordinates(location); // Get coordinates and formatted address using the location provided
-
+            const { lat, lng, formattedAddress } = await getCoordinates(location);
+            
             // Convert the scheduled time to UTC
-            const scheduledTimeInUTC = moment.tz(scheduledTime, 'Asia/Manila').utc().toDate();
+            const scheduledTimeInUTC = scheduledMoment.utc().toDate();
 
-            const post = await prisma.post.create({ // Create a new post record in the database
+            const post = await prisma.post.create({
                 data: {
-                    userId: userId,
-                    accountId: account.id, // Associate with the user's social media account
+                    userId,
+                    accountId: account.id,
                     content,
-                    location: formattedAddress, // Store the formatted address
-                    latitude: lat, // Store latitude
-                    longitude: lng, // Store longitude
-                    scheduledTime: scheduledTimeInUTC, // Store the scheduled time in UTC
-                    status: "SCHEDULED", // Set the initial status to "SCHEDULED"
-                    imageUrl: imageUrl
+                    location: formattedAddress,
+                    latitude: lat,
+                    longitude: lng,
+                    scheduledTime: scheduledTimeInUTC,
+                    status: 'SCHEDULED',
+                    imageUrl 
                 },
             });
 
-            schedulePost(post); // Schedule the post for publishing
+            await schedulePost(post);
 
-            res.status(201).json({ // Respond with the created post data
+            res.status(201).json({
                 message: "Post scheduled successfully",
                 post,
             });
         } catch (error) {
-            console.error("Error scheduling post:", error); // Log any errors
-            res.status(500).json({ message: "Failed to schedule post", error }); // Respond with a 500 error
+            console.error("Error scheduling post:", error);
+            
+            // Provide more specific error messages based on the error type
+            if (error.code === 'P2002') {
+                return res.status(400).json({ 
+                    message: "A post with these details already exists" 
+                });
+            }
+            
+            res.status(500).json({ 
+                message: "Failed to schedule post",
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
         }
     }
 );
